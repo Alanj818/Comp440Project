@@ -1,1 +1,50 @@
-back-end/.env
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# ----------------------------
+# Node / React
+# ----------------------------
+node_modules/
+.pnp/
+.pnp.js
+coverage/
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+front-end/src/.env        # main env for frontend
+
+# ----------------------------
+# Python / Flask backend
+# ----------------------------
+venv/
+.venv/
+__pycache__/
+*.pyc
+instance/
+back-end/__pycache__/
+back-end/.env      # backend environment file
+
+# ----------------------------
+# IDE / OS
+# ----------------------------
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+
+# ----------------------------
+# Compiled / cache / temp
+# ----------------------------
+*.log
+*.sqlite3
+*.db
+
