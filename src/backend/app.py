@@ -6,18 +6,18 @@ flask -> API framework, importing Flask itself, session to save user token, requ
 
 requests -> handles HTTP requests for pages outside the webpage
 
-json -> just in case json needs to be serialized/deserialized
+json -> just in case json needs to be serialized/deserialized. Part of Python already
 
 psycopg2 -> Postgres database manipulation library
 
 flask_bcrypt -> bcrypt password hashing for flask
 """
 
-from flask import Flask, session, request
+from flask import Flask, session, request, redirect
 import requests, json
 import psycopg2 as pg
-from flask_bcrypt import Bcrypt
-
+from flask_cors import CORS
+from werkzeug.security import generate_password_hash, check_password_hash
 #----------------------------------------------------------------------------#
 
 
@@ -27,35 +27,10 @@ from .db_init import connect_db
 
 # Initializing app and bcrypt
 app = Flask(__name__)
-bcrypt = Bcrypt(app)
+CORS(app)
 
-
+# Uses function from db_conn 
 db = connect_db()
 
-
-# Checks if login is valid 
-def valid_login(u, p):
-    username = u
-    password = p
-    if(bcrypt.check_password_hash(password))
-
-
-@app.route("/signup", methods = ['GET', 'POST'])
-def signup():
-     if request.method == 'POST':
-
-
-
-
-
-
-
-
-
-# Login route, methods determines what HTTP functions that this page will use
-@app.route("/login", methods = ['GET', 'POST'])
-def login():
-  #  if request.method == 'POST':
-      
-   
+cur = db.cursor
 
