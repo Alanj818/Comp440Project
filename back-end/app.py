@@ -10,7 +10,6 @@ json -> just in case json needs to be serialized/deserialized. Part of Python al
 
 psycopg2 -> Postgres database manipulation library
 
-flask_bcrypt -> bcrypt password hashing for flask
 """
 
 from flask import Flask, session, request, redirect
@@ -21,16 +20,16 @@ from werkzeug.security import generate_password_hash, check_password_hash
 #----------------------------------------------------------------------------#
 
 
-from .db_init import connect_db
+from .db_conn import connect_db
+from .auth import auth_bp
 
 
 
 # Initializing app and bcrypt
 app = Flask(__name__)
-CORS(app)
+CORS(app, supports_credentials=True)
 
-# Uses function from db_conn 
-db = connect_db()
+app.register_blueprint(auth_bp)
 
-cur = db.cursor
-
+if __name__ == "__main__":
+    app.run(debug=True)

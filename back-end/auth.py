@@ -67,3 +67,9 @@ def login():
 
     session["username"] = username
     return jsonify({"message": "Login Successful!"})
+
+
+@auth_bp("logout")
+def logout():
+    session.pop('username', None)
+    return redirect(url_for('login'))
