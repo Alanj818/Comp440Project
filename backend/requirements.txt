@@ -4,3 +4,4 @@ psycopg2
 Flask-Login
 Werkzeug
 Flask-CORS
+python-dotenv
