@@ -20,8 +20,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 #----------------------------------------------------------------------------#
 
 
-from .db_conn import connect_db
-from .auth import auth_bp
+from db_conn import connect_db
+from auth import auth_bp
 
 
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import axios from 'axios';
+import axios from 'axios'; //npm install axios
 import './register.css';
 import { Box, Button, TextField, Typography } from '@mui/material';
 
@@ -41,7 +41,7 @@ export default function RegisterComponent() {
             />
 
             <Button
-                onClick={handleRegistration} //send data over to db
+                onClick={handleRegistration} //POST data to api endpoint using Axios {npm install axios (in cd /my-app/front-end directory)}
                 variant='contained' >
                 Submit
             </Button>

@@ -17,7 +17,7 @@ RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
 # Copy into working directory
-COPY app.py . 
+COPY . . 
 
 # Run app.py
 CMD ["python","app.py"]
