@@ -1,8 +1,14 @@
 import React from 'react';
+import axios from 'axios';
 import './register.css';
 import { Box, Button, TextField, Typography } from '@mui/material';
 
 export default function RegisterComponent() {
+
+    const handleRegistration = async () => {
+        
+    }
+
     return (
         <Box className="register-container">
 
@@ -35,7 +41,8 @@ export default function RegisterComponent() {
             />
 
             <Button
-                variant='text' >
+                onClick={handleRegistration} //send data over to db
+                variant='contained' >
                 Submit
             </Button>
 

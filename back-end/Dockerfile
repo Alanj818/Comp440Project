@@ -20,4 +20,4 @@ RUN pip install -r requirements.txt
 COPY app.py . 
 
 # Run app.py
-CMD ["python","src/backend/app.py"]
+CMD ["python","app.py"]
