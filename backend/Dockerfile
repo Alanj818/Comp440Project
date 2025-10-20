@@ -2,9 +2,9 @@
 FROM python:3.13-slim
 
 # Set working directory
-WORKDIR /back-end
+WORKDIR /backend
 
-# Copy requirements first
+# Copy requirements first into working directory
 COPY requirements.txt .
 
 # Install system dependencies for psycopg2 build
@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y \
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-# Copy into working directory
-COPY app.py . 
+# Copy backend into working directory
+COPY . . 
 
 # Run app.py
-CMD ["python","src/backend/app.py"]
+CMD ["python","/backend/app.py"]
