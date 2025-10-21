@@ -2,6 +2,7 @@ import React, { useState, ChangeEvent, FormEvent } from "react";
 import { Box, Button, TextField, Typography } from "@mui/material";
 import { registerUser } from "../../api/auth";
 import "./register.css";
+import { useNavigate } from "react-router-dom";
 
 interface RegisterForm {
   username: string;
@@ -27,6 +28,18 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const navigate = useNavigate();
+
+  const handleRedirect = () => {
+    try{
+      setLoading(true); 
+      navigate("/login");
+    } catch(err: any){
+      setError(err.message || "Error Redirecting");
+    } finally {
+      setLoading(false); 
+    }
+  }
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -167,8 +180,11 @@ export default function Register() {
         </Typography>
       )}
 
-      <Button type="submit" variant="text" disabled={loading} sx={{ mt: 1 }}>
+      <Button type="submit" variant="contained" disabled={loading} sx={{ mt: 1 }}>
         {loading ? "Submitting..." : "Submit"}
+      </Button>
+      <Button variant="text" onClick={handleRedirect}>
+        Already have an account? Login here!
       </Button>
     </Box>
   );
