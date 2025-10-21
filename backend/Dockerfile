@@ -16,16 +16,8 @@ RUN apt-get update && apt-get install -y \
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-<<<<<<< HEAD:back-end/Dockerfile
-# Copy into working directory
-COPY . . 
-
-# Run app.py
-CMD ["python","app.py"]
-=======
 # Copy backend into working directory
 COPY . . 
 
 # Run app.py
 CMD ["python","/backend/app.py"]
->>>>>>> main:backend/Dockerfile
