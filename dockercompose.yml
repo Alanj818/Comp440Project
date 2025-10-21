@@ -1,0 +1,16 @@
+services:
+  backend:
+    build: ./backend
+    environment: 
+      restart: on-failure
+      ports:
+        - "5000:5000"
+  
+  frontend:
+   environment: 
+      build: ./frontend
+      restart: on-failure
+      ports:
+        - "5000:5000"
+  depends_on:
+    - backend
