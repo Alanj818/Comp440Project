@@ -45,11 +45,11 @@ export default function LoginComponent() {
             setLoading(true);
             const res = await loginUser(username, password);
             if(res.error) {throw new Error(res.error)}
+            setSuccess("Login Successful!");
         } catch (err: any) {
             setError(err.message || "Login Failed.");
         } finally{
             setLoading(false);
-            setSuccess("Login Successful!");
         }
     }
 
