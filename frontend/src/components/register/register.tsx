@@ -26,21 +26,21 @@ export default function Register() {
   });
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | string[]>("");
   const [success, setSuccess] = useState("");
   const navigate = useNavigate();
 
 
   const handleRedirect = () => {
-        try{
-            setLoading(true); 
-            navigate("/login");
-        } catch(err: any){
-            setError(err.message || "Redirect Failed.");
-        } finally{
-            setLoading(false);
-        }
-    } 
+    try {
+      setLoading(true);
+      navigate("/login");
+    } catch (err: any) {
+      setError(err.message || "Redirect Failed.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -51,8 +51,8 @@ export default function Register() {
     e.preventDefault();
     setError("");
     setSuccess("");
-  
-    
+
+
     const emailOk = /\S+@\S+\.\S+/.test(form.email);
     const phoneOk = /^[0-9+\-\s()]{7,}$/.test(form.phone);
     if (!emailOk) return setError("Please enter a valid email.");
@@ -72,12 +72,12 @@ export default function Register() {
     try {
       setLoading(true);
       const res = await registerUser(payload);
-      
+
       if (res.error) {
         setError(Array.isArray(res.error) ? res.error : [res.error]);
         return;
-      } 
-      
+      }
+
       setSuccess("Registration successful!");
 
       setForm({
@@ -174,11 +174,11 @@ export default function Register() {
         required
       />
 
-      {Array.isArray(error) && error.length > 0 && (
+      {Boolean(error) && (
         <Typography color="error" textAlign="center">
-          {error.map((msg, i) => (
-            <div key={i}>{msg}</div>
-          ))}
+          {Array.isArray(error)
+            ? error.map((msg, i) => <div key={i}>{msg}</div>)
+            : error}
         </Typography>
       )}
       {success && (
