@@ -58,23 +58,18 @@ def create_auth_table(cursor):
 
 
 
-#Checks if the account already exists in the database
-#All parameters are optional
+# All parameters are optional
 def check_if_account_exists(username: str = None, email: str = None, phone: str = None) -> bool:
 
     
-    #Checks if the inputted username, email, or phone number already exists
-    #Returns dict with which fields are already registered
-
-    #SELECT 1 is used instead of an actual result (ex: SELECT *) 
-    #for the query since its faster for this purpose (just finding out if something is there)
-
-
+    # Checks if the inputted username, email, or phone number already exists
+    # Returns dict with which fields are already registered
+    # SELECT 1 is used instead of an actual result (ex: SELECT *) for the query since its faster for this purpose (just finding out if something is there)
     conflicts = {}
     
     cur.execute("SELECT 1 FROM auth WHERE username = %s", (username,))  
     if cur.fetchone():
-        conflicts["username"] = "Account with inputted username already exists"
+        conflicts["username"] = "Account with inputted username already exists" 
     
     cur.execute("SELECT 1 FROM auth WHERE email = %s", (email,))
     if cur.fetchone():
