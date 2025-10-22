@@ -1,12 +1,13 @@
 import psycopg2 as pg
+from psycopg2 import pool
 import os
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
 
-def connect_db():
-    return pg.connect(
+# Using a pool to keep connection open and handle concurrent connections, also reuses existing connections.
+db_pool = pool.ThreadedConnectionPool(
         dbname=os.getenv("DB_NAME"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASS"),

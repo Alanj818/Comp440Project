@@ -1,16 +1,43 @@
 from flask import Blueprint, redirect, request, session, url_for, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2 as pg
-from .db_conn import connect_db
+from .db_conn import db_pool
 
+
+#----------------------------------------Blueprint Init and DB Connection--------------------------------------------------------------------#
+
+
+'''
+
+ Flask uses "Blueprints" for modularity, 
+ set of operations that are registered to an application (app.py)
+
+'''
 auth_bp = Blueprint("auth", __name__)
 
-conn = connect_db()
-conn.autocommit = True           
-cur = conn.cursor()
+
+
+# conn will serve as our connection to the DB pool initialized in db_conn
 
 try:
-    dsn = conn.get_dsn_parameters()
+
+    conn = db_pool.getconn()     
+    conn.autocommit = True    
+    cur = conn.cursor()
+
+except Exception as e:
+    print(f"Error creating cursor: {e}")
+
+'''
+
+ Checks if the database connection was successful, as well as correct using Data Source Name parameters
+
+ If any error or anything comes up, it will continue still and not crash
+
+ 
+'''
+try:
+    dsn = conn.get_dsn_parameters() 
     print(
         "[DB] Connected",
         "host=", dsn.get("host"),
@@ -22,8 +49,12 @@ except Exception as _:
     pass
 
 
-def create_auth_table():
-    cur.execute("""
+# Creates the table for authentication, does not create it if it already exists in the database
+
+# Gets called at app start up
+
+def create_auth_table(cursor):
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS auth(
             username   varchar(255) PRIMARY KEY,
             password   text         NOT NULL,
@@ -34,16 +65,43 @@ def create_auth_table():
         )
     """)
 
-create_auth_table()
 
+
+'''
+
+Checks if the account already exists in the database
+
+Type hints are used just to show what should be inputted and what will be returned
+
+'''
 
 def check_if_account_exists(username: str) -> bool:
-    cur.execute("SELECT 1 FROM auth WHERE username = %s", (username,))
+
+    '''
+    SELECT 1 is used instead of an actual result (ex: SELECT *) 
+    for the query since its faster for this purpose (just finding out if something is there)
+
+    '''
+
+    cur.execute("SELECT 1 FROM auth WHERE username = %s", (username,))  
     return cur.fetchone() is not None
+
+
+
+
+#-------------------------------------------Register-----------------------------------------------------------------------------------------#
 
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
+
+    '''
+
+    data will get POST data from the frontend, and will parse it despite mimetype (force=True)
+    
+    All values that were entered into the form are parsed from json and saved to a variable
+
+    '''
     data = request.get_json(force=True)
     username   = data.get("username")
     password   = data.get("password")
@@ -51,6 +109,9 @@ def register():
     last_name  = data.get("lastName")
     email      = data.get("email")
     phone      = data.get("phone")
+    
+
+    # if statment checks if all the required fields were entered, returning an error if and HTTP 400 code if fields were not complete
 
     if not all([username, password, first_name, last_name, email, phone]):
         return jsonify({"error": "Missing required fields"}), 400
@@ -59,6 +120,8 @@ def register():
         return jsonify({"error": "Username already exists"}), 400
 
     pw_hash = generate_password_hash(password)
+
+    # Tries to insert values into auth table, outputs username as a result of DDL 
     try:
 
         cur.execute(
@@ -69,47 +132,82 @@ def register():
             """,
             (username, pw_hash, first_name, last_name, email, phone),
         )
+
+        # new_user fetches the returned username
+
         new_user = cur.fetchone()
+
+        # if new_user has no value, return error and HTTP 500
+
         if not new_user:
             return jsonify({"error": "Insert failed"}), 500
 
         return jsonify({"message": "Registration successful", "username": new_user[0]}), 201
+
+    
+    # If any error occurs while inserting values into DB return an error and print what the error is to the console. 
+
+    # Insert is atomic so no need to tell DB to rollback, it is either all or none
+
     except pg.Error as e:
         print(f"Database error while registering user: {e}")
         return jsonify({"error": "Database error"}), 500
 
 
+#-----------------------------------------------------Login/Logout/Debug----------------------------------------------------------------------#
+
 @auth_bp.route("/login", methods=["POST"])
 def login():
+
+    '''
+
+    data will get POST data from the frontend, and will parse it despite mimetype (force=True)
+    
+    All values that were entered into the form are parsed from json and saved to a variable
+
+    '''
+     
     data = request.get_json(force=True)
     username = data.get("username")
     password = data.get("password")
 
+
+    # if statement checks if all the required fields were entered, returning an error if and HTTP 400 code if fields were not complete
     if not all([username, password]):
         return jsonify({"error": "Missing required fields"}), 400
 
     if not check_if_account_exists(username):
         return jsonify({"error": "Account associated with inputted username does not exist."}), 404
 
+    # Fetches hashed password stored in database 
     cur.execute("SELECT password FROM auth WHERE username = %s", (username,))
     row = cur.fetchone()
+
+    # if statement gives pw_hash the 'None' value if there is nothing in the fetched row which prevents it from crashing if there is row has no value at all
     pw_hash = row[0] if row else None
+
 
     if not pw_hash or not check_password_hash(pw_hash, password):
         return jsonify({"error": "Incorrect Password"}), 401
+    
 
+    # stores username in user session, persists across requests
     session["username"] = username
     return jsonify({"message": "Login Successful!"})
 
 
 @auth_bp.route("/logout")
 def logout():
+
+    # pops username from user session
     session.pop("username", None)
     return jsonify({"message": "Logged out"})
 
 
 @auth_bp.route("/_debug/count")
 def _debug_count():
+
+    # Fetches number of rows (users) in auth and returns the number, for admin use
     cur.execute("SELECT COUNT(*) FROM auth")
     n = cur.fetchone()[0]
     return jsonify({"count": n})

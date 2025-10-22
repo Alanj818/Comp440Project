@@ -1,33 +1,23 @@
 #---------------------Libraries and packages here---------------------------#
 
-
-"""
-flask -> API framework, importing Flask itself, session to save user token, request to handle HTTP request within the webpage itself
-
-requests -> handles HTTP requests for pages outside the webpage
-
-json -> just in case json needs to be serialized/deserialized. Part of Python already
-
-psycopg2 -> Postgres database manipulation library
-
-"""
-
 from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
+import psycopg2 as pg
 import os
-from backend.auth import conn
 #----------------------------------------------------------------------------#
 
-# Load backend/.env
+
 load_dotenv()
 
+# Initialize allowed array and store all possible hosts for the frontend
 allowed = [
     os.getenv("FRONTEND_ORIGIN", "http://localhost:3000"),
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
+
 
 def create_app():
     app = Flask(__name__)
@@ -43,8 +33,15 @@ def create_app():
         max_age=600,
     )
 
-    from .auth import auth_bp   
+    # Importing the auth Blueprint to be registered to the main app
+    from .auth import auth_bp, create_auth_table  
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
+
+    # Importing the db_pool to create the auth table the first time the app is ran
+    from .db_conn import db_pool
+    conn = db_pool.getconn()
+    cur = conn.cursor()
+    create_auth_table(cur)
 
     return app
 
