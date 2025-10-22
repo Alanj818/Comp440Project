@@ -1,16 +1,14 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # ----------------------------
 # .env 
 # ----------------------------
 
-*.env
-*.env.*
+*/.env
 
 # ----------------------------
 # Node / React
 # ----------------------------
-node_modules/
+**/node_modules/
+**/dist
 .pnp/
 .pnp.js
 coverage/
@@ -27,25 +25,25 @@ yarn-error.log*
 # ----------------------------
 # Python / Flask backend
 # ----------------------------
-venv/
-.venv/
-__pycache__/
-*.pyc
-instance/
-backend/__pycache__/
+*/venv/
+*/.venv/
+__pycache__
+*/.pyc
+*/instance/
+
 
 # ----------------------------
 # IDE / OS
 # ----------------------------
-.vscode/
-.idea/
-*.swp
-Thumbs.db
+**/.vscode/
+*/.idea/
+*/.swp
+*/Thumbs.db
 
 # ----------------------------
 # Compiled / cache / temp
 # ----------------------------
-*.log
-*.sqlite3
-*.db
+*/.log
+*/.sqlite3
+*/.db
 

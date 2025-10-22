@@ -8,6 +8,8 @@ load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
 
 # Using a pool to keep connection open and handle concurrent connections, also reuses existing connections.
 db_pool = pool.ThreadedConnectionPool(
+        minconn= 1,
+        maxconn= 10,
         dbname=os.getenv("DB_NAME"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASS"),

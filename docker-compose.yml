@@ -1,0 +1,20 @@
+services:
+  backend:
+    build: ./backend
+    restart: on-failure
+    ports:
+      - "5000:5000" # Port mapping between host (left) and container (right)
+    environment: 
+      FLASK_ENV: development # Enter debug mode
+    volumes:
+      - ./backend:/backend # Mounting the ./backend local directory to containers /backend, anything that changes in ./backend appears in the container
+  frontend:
+    build: ./frontend
+    restart: on-failure
+    ports:
+        - "3000:3000"
+    environment:
+      - HOST=0.0.0.0 # Makes react app reachable by having it listen to all network interfaces
+    volumes:
+      - ./frontend:/frontend 
+      - /frontend/node_modules # Prevents the overwriting of the container node module (no colon), keeps container 'node_modules' seperate from local files

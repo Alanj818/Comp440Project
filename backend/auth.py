@@ -1,7 +1,7 @@
 from flask import Blueprint, redirect, request, session, url_for, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2 as pg
-from .db_conn import db_pool
+from db_conn import db_pool
 
 
 #----------------------------------------Blueprint Init and DB Connection--------------------------------------------------------------------#
@@ -71,20 +71,36 @@ def create_auth_table(cursor):
 
 Checks if the account already exists in the database
 
-Type hints are used just to show what should be inputted and what will be returned
+All parameters are optional
 
 '''
 
-def check_if_account_exists(username: str) -> bool:
+def check_if_account_exists(username: str = None, email: str = None, phone: str = None) -> bool:
 
     '''
+    Checks if the inputted username, email, or phone number already exists
+    Returns dict with which fields are already registered
+
     SELECT 1 is used instead of an actual result (ex: SELECT *) 
     for the query since its faster for this purpose (just finding out if something is there)
 
     '''
-
+    conflicts = {}
+    
     cur.execute("SELECT 1 FROM auth WHERE username = %s", (username,))  
-    return cur.fetchone() is not None
+    if cur.fetchone():
+        conflicts["username"] = "Account with inputted username already exists"
+    
+    cur.execute("SELECT 1 FROM auth WHERE email = %s", (email,))
+    if cur.fetchone():
+        conflicts["email"] = "Account with inputted email already exists"
+    
+    cur.execute("SELECT 1 FROM auth WHERE phone = %s", (phone,))
+    if cur.fetchone():
+        conflicts["phone"] = "Account with inputted phone number already exists"
+    
+    
+    return conflicts
 
 
 
@@ -112,14 +128,16 @@ def register():
     
 
     # if statment checks if all the required fields were entered, returning an error if and HTTP 400 code if fields were not complete
-
     if not all([username, password, first_name, last_name, email, phone]):
         return jsonify({"error": "Missing required fields"}), 400
 
-    if check_if_account_exists(username):
-        return jsonify({"error": "Username already exists"}), 400
+    # Initialize conflicts here so that it can return each conflict on the frontend
+    conflicts = check_if_account_exists(username,email,phone)
+    if conflicts:
+        return({"error": list(conflicts.values())})
 
     pw_hash = generate_password_hash(password)
+
 
     # Tries to insert values into auth table, outputs username as a result of DDL 
     try:
@@ -134,11 +152,10 @@ def register():
         )
 
         # new_user fetches the returned username
-
         new_user = cur.fetchone()
 
-        # if new_user has no value, return error and HTTP 500
 
+        # if new_user has no value, return error and HTTP 500
         if not new_user:
             return jsonify({"error": "Insert failed"}), 500
 
@@ -146,9 +163,7 @@ def register():
 
     
     # If any error occurs while inserting values into DB return an error and print what the error is to the console. 
-
     # Insert is atomic so no need to tell DB to rollback, it is either all or none
-
     except pg.Error as e:
         print(f"Database error while registering user: {e}")
         return jsonify({"error": "Database error"}), 500
@@ -176,12 +191,16 @@ def login():
     if not all([username, password]):
         return jsonify({"error": "Missing required fields"}), 400
 
-    if not check_if_account_exists(username):
+
+    
+    conflicts = check_if_account_exists(username)
+    if not conflicts:
         return jsonify({"error": "Account associated with inputted username does not exist."}), 404
 
     # Fetches hashed password stored in database 
     cur.execute("SELECT password FROM auth WHERE username = %s", (username,))
     row = cur.fetchone()
+
 
     # if statement gives pw_hash the 'None' value if there is nothing in the fetched row which prevents it from crashing if there is row has no value at all
     pw_hash = row[0] if row else None

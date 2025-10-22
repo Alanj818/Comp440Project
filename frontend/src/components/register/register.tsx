@@ -2,6 +2,7 @@ import React, { useState, ChangeEvent, FormEvent } from "react";
 import { Box, Button, TextField, Typography } from "@mui/material";
 import { registerUser } from "../../api/auth";
 import "./register.css";
+import { useNavigate } from 'react-router-dom';
 
 interface RegisterForm {
   username: string;
@@ -27,6 +28,19 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const navigate = useNavigate();
+
+
+  const handleRedirect = () => {
+        try{
+            setLoading(true); 
+            navigate("/login");
+        } catch(err: any){
+            setError(err.message || "Redirect Failed.");
+        } finally{
+            setLoading(false);
+        }
+    } 
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -37,7 +51,7 @@ export default function Register() {
     e.preventDefault();
     setError("");
     setSuccess("");
-
+  
     
     const emailOk = /\S+@\S+\.\S+/.test(form.email);
     const phoneOk = /^[0-9+\-\s()]{7,}$/.test(form.phone);
@@ -58,8 +72,12 @@ export default function Register() {
     try {
       setLoading(true);
       const res = await registerUser(payload);
-      if (res.error) throw new Error(res.error);
-
+      
+      if (res.error) {
+        setError(Array.isArray(res.error) ? res.error : [res.error]);
+        return;
+      } 
+      
       setSuccess("Registration successful!");
 
       setForm({
@@ -156,9 +174,11 @@ export default function Register() {
         required
       />
 
-      {error && (
+      {Array.isArray(error) && error.length > 0 && (
         <Typography color="error" textAlign="center">
-          {error}
+          {error.map((msg, i) => (
+            <div key={i}>{msg}</div>
+          ))}
         </Typography>
       )}
       {success && (
@@ -169,6 +189,10 @@ export default function Register() {
 
       <Button type="submit" variant="text" disabled={loading} sx={{ mt: 1 }}>
         {loading ? "Submitting..." : "Submit"}
+      </Button>
+
+      <Button variant='text' onClick={handleRedirect}>
+        Already have an account? Log in Here!
       </Button>
     </Box>
   );

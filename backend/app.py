@@ -34,11 +34,11 @@ def create_app():
     )
 
     # Importing the auth Blueprint to be registered to the main app
-    from .auth import auth_bp, create_auth_table  
+    from auth import auth_bp, create_auth_table  
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
 
     # Importing the db_pool to create the auth table the first time the app is ran
-    from .db_conn import db_pool
+    from db_conn import db_pool
     conn = db_pool.getconn()
     cur = conn.cursor()
     create_auth_table(cur)
