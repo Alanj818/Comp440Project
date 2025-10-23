@@ -1,6 +1,6 @@
 # COMP 440 Database Project
 
-## Dev Tools
+## Tools
 
 React + Flask + Postgres (Railway), and Docker Compose for building and deploying containers.
 
