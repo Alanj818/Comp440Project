@@ -38,18 +38,18 @@ export default function LoginComponent() {
         setSuccess("");
 
         //making sure password meets criteria
-        if(password.length < 6 ) {return setError("Password must be at least 6 characters."), alert("Password must be at least 6 characters")}
+        if(password.length < 6 ) {return setError("Password must be at least 6 characters."); alert("Password must be at least 6 characters")}
 
         //now that it does, call auth
         try {
             setLoading(true);
             const res = await loginUser(username, password);
             if(res.error) {throw new Error(res.error)}
+            setSuccess("Login Successful!");
         } catch (err: any) {
             setError(err.message || "Login Failed.");
         } finally{
             setLoading(false);
-            setSuccess("Login Successful!");
         }
     }
 

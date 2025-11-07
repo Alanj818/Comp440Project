@@ -7,18 +7,14 @@ from db_conn import db_pool
 #----------------------------------------Blueprint Init and DB Connection--------------------------------------------------------------------#
 
 
-'''
 
- Flask uses "Blueprints" for modularity, 
- set of operations that are registered to an application (app.py)
-
-'''
+#Flask uses "Blueprints" for modularity, 
+# Blueprints are a set of operations that are registered to an application (app.py) and then used
 auth_bp = Blueprint("auth", __name__)
 
 
 
 # conn will serve as our connection to the DB pool initialized in db_conn
-
 try:
 
     conn = db_pool.getconn()     
@@ -28,14 +24,9 @@ try:
 except Exception as e:
     print(f"Error creating cursor: {e}")
 
-'''
 
- Checks if the database connection was successful, as well as correct using Data Source Name parameters
-
- If any error or anything comes up, it will continue still and not crash
-
- 
-'''
+# Checks if the database connection was successful, as well as correct using Data Source Name parameters
+# If any error or anything comes up, it will continue still and not crash
 try:
     dsn = conn.get_dsn_parameters() 
     print(
@@ -50,9 +41,7 @@ except Exception as _:
 
 
 # Creates the table for authentication, does not create it if it already exists in the database
-
 # Gets called at app start up
-
 def create_auth_table(cursor):
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS auth(
@@ -67,29 +56,20 @@ def create_auth_table(cursor):
 
 
 
-'''
 
-Checks if the account already exists in the database
 
-All parameters are optional
-
-'''
-
+# All parameters are optional
 def check_if_account_exists(username: str = None, email: str = None, phone: str = None) -> bool:
 
-    '''
-    Checks if the inputted username, email, or phone number already exists
-    Returns dict with which fields are already registered
-
-    SELECT 1 is used instead of an actual result (ex: SELECT *) 
-    for the query since its faster for this purpose (just finding out if something is there)
-
-    '''
+    
+    # Checks if the inputted username, email, or phone number already exists
+    # Returns dict with which fields are already registered
+    # SELECT 1 is used instead of an actual result (ex: SELECT *) for the query since its faster for this purpose (just finding out if something is there)
     conflicts = {}
     
     cur.execute("SELECT 1 FROM auth WHERE username = %s", (username,))  
     if cur.fetchone():
-        conflicts["username"] = "Account with inputted username already exists"
+        conflicts["username"] = "Account with inputted username already exists" 
     
     cur.execute("SELECT 1 FROM auth WHERE email = %s", (email,))
     if cur.fetchone():
@@ -111,13 +91,8 @@ def check_if_account_exists(username: str = None, email: str = None, phone: str 
 @auth_bp.route("/register", methods=["POST"])
 def register():
 
-    '''
-
-    data will get POST data from the frontend, and will parse it despite mimetype (force=True)
-    
-    All values that were entered into the form are parsed from json and saved to a variable
-
-    '''
+    # data will get POST data from the frontend, and will parse it despite mimetype (force=True)
+    # All values that were entered into the form are parsed from json and saved to a variable
     data = request.get_json(force=True)
     username   = data.get("username")
     password   = data.get("password")
@@ -131,7 +106,7 @@ def register():
     if not all([username, password, first_name, last_name, email, phone]):
         return jsonify({"error": "Missing required fields"}), 400
 
-    # Initialize conflicts here so that it can return each conflict on the frontend
+    # Initialize conflicts here so that it can return each conflict to the frontend
     conflicts = check_if_account_exists(username,email,phone)
     if conflicts:
         return({"error": list(conflicts.values())})
@@ -174,14 +149,9 @@ def register():
 @auth_bp.route("/login", methods=["POST"])
 def login():
 
-    '''
-
-    data will get POST data from the frontend, and will parse it despite mimetype (force=True)
     
-    All values that were entered into the form are parsed from json and saved to a variable
-
-    '''
-     
+    # data will get POST data from the frontend, and will parse it despite mimetype (force=True)
+    # All values that were entered into the form are parsed from json and saved to a variable
     data = request.get_json(force=True)
     username = data.get("username")
     password = data.get("password")
