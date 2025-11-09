@@ -48,8 +48,9 @@ def create_blog_tables(cursor):
 
 
 
-# All parameters are optional
-def validate_blog_data(subject: str = None, description: str = None, tags: list = None):
+#---------------------------------------------------------Helper Functions---------------------------------------------------------------#
+
+def validate_blog_data(subject, description, tags):
     """
     Validates blog creation data
     Returns dict with any validation errors found
@@ -59,9 +60,6 @@ def validate_blog_data(subject: str = None, description: str = None, tags: list 
     if subject is not None:
         if not subject or not subject.strip():
             errors["subject"] = "Subject is required"
-        elif len(subject) > 200:
-            errors["subject"] = "Subject must be less than 200 characters"
-    
     if description is not None:
         if not description or not description.strip():
             errors["description"] = "Description is required"
@@ -75,8 +73,7 @@ def validate_blog_data(subject: str = None, description: str = None, tags: list 
     return errors
 
 
-# All parameters are optional
-def validate_comment_data(sentiment: str = None, description: str = None):
+def validate_comment_data(sentiment, description):
     """
     Validates comment data
     Returns dict with any validation errors found
@@ -96,7 +93,7 @@ def validate_comment_data(sentiment: str = None, description: str = None):
     return errors
 
 
-def check_daily_blog_limit(cursor, username: str):
+def check_daily_blog_limit(cursor, username):
     """Checks if user has posted 2 blogs today"""
     cursor.execute("""
         SELECT COUNT(*) FROM blogs 
@@ -108,7 +105,7 @@ def check_daily_blog_limit(cursor, username: str):
     return count >= 2
 
 
-def check_daily_comment_limit(cursor, username: str):
+def check_daily_comment_limit(cursor, username):
     """Checks if user has made 3 comments today"""
     cursor.execute("""
         SELECT COUNT(*) FROM comments 
@@ -120,7 +117,7 @@ def check_daily_comment_limit(cursor, username: str):
     return count >= 3
 
 
-def check_comment_exists(cursor, username: str, blog_id: int):
+def check_comment_exists(cursor, username, blog_id):
     """Checks if user has already commented on this blog"""
     # SELECT 1 is used instead of an actual result (ex: SELECT *) for the query since its faster for this purpose (just finding out if something is there)
     cursor.execute("""
@@ -131,14 +128,14 @@ def check_comment_exists(cursor, username: str, blog_id: int):
     return cursor.fetchone() is not None
 
 
-def get_blog_author(cursor, blog_id: int):
+def get_blog_author(cursor, blog_id):
     """Gets the author username of a blog"""
     cursor.execute("SELECT username FROM blogs WHERE blog_id = %s", (blog_id,))
     result = cursor.fetchone()
     return result[0] if result else None
 
 
-def check_if_blog_exists(cursor, blog_id: int):
+def check_if_blog_exists(cursor, blog_id):
     """Checks if a blog exists"""
     
     cursor.execute("SELECT 1 FROM blogs WHERE blog_id = %s", (blog_id,))
@@ -401,95 +398,6 @@ def add_comment(blog_id):
             "comment_id": comment_id,
             "created_at": created_at.isoformat()
         }), 201
-        
-    finally:
-        if conn:
-            db_pool.putconn(conn)
-
-
-@blog_bp.route('/my-blogs', methods=['GET'])
-def get_my_blogs():
-    conn = None
-    
-    username = session.get('username')
-    if not username:
-        return jsonify({"error": "Please log in first"}), 401
-    
-    try:
-        conn = db_pool.getconn()
-        conn.autocommit = True
-        cur = conn.cursor()
-        
-        cur.execute("""
-            SELECT 
-                blog_id,
-                subject,
-                description,
-                tags,
-                created_at
-            FROM blogs
-            WHERE username = %s
-            ORDER BY created_at DESC
-        """, (username,))
-        
-        results = cur.fetchall()
-        
-        blogs = []
-        for row in results:
-            blogs.append({
-                "blog_id": row[0],
-                "subject": row[1],
-                "description": row[2],
-                "tags": row[3],
-                "created_at": row[4].isoformat()
-            })
-        
-        return jsonify({"blogs": blogs}), 200
-        
-    finally:
-        if conn:
-            db_pool.putconn(conn)
-
-
-@blog_bp.route('/recent', methods=['GET'])
-def get_recent_blogs():
-    conn = None
-    
-    limit = request.args.get('limit', 10, type=int)
-    limit = min(limit, 50)
-    
-    try:
-        conn = db_pool.getconn()
-        conn.autocommit = True
-        cur = conn.cursor()
-        
-        cur.execute("""
-            SELECT 
-                blog_id,
-                username,
-                subject,
-                description,
-                tags,
-                created_at
-            FROM blogs
-            ORDER BY created_at DESC
-            LIMIT %s
-        """, (limit,))
-        
-        results = cur.fetchall()
-        
-        blogs = []
-        for row in results:
-            blogs.append({
-                "blog_id": row[0],
-                "username": row[1],
-                "subject": row[2],
-                "description": row[3],
-                "tags": row[4],
-                "created_at": row[5].isoformat()
-            })
-        
-        return jsonify({"blogs": blogs}), 200
         
     finally:
         if conn:
