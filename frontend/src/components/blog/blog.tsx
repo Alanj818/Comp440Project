@@ -407,7 +407,6 @@ function SearchBlogsComponent() {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>ID</TableCell>
                     <TableCell>Subject</TableCell>
                     <TableCell>Author</TableCell>
                     <TableCell>Tags</TableCell>
@@ -418,7 +417,6 @@ function SearchBlogsComponent() {
                 <TableBody>
                   {blogs.map((blog) => (
                     <TableRow key={blog.blog_id}>
-                      <TableCell>{blog.blog_id}</TableCell>
                       <TableCell>
                         <Typography fontWeight="bold">
                           {blog.subject}

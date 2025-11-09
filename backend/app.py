@@ -33,15 +33,12 @@ def create_app():
         max_age=600,
     )
 
-    # Importing the auth Blueprint to be registered to the main app
     from auth import auth_bp, create_auth_table  
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
 
-    # Importing the blog Blueprint to be registered to the main app
     from blog import blog_bp, create_blog_tables
     app.register_blueprint(blog_bp, url_prefix="/api/blog")
 
-    # Importing the db_pool to create tables the first time the app is ran
     from db_conn import db_pool
     
     conn = None
@@ -54,7 +51,7 @@ def create_app():
         # Create auth table
         create_auth_table(cur)
         
-        # Create blog tables
+        # Create blog tables (blogs, comments)
         create_blog_tables(cur)
         
         print("[APP] All tables created successfully")

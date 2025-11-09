@@ -1,14 +1,19 @@
 from flask import Blueprint, request, session, jsonify
 from db_conn import db_pool
-from datetime import datetime, date
 import psycopg2 as pg
+
+
+#----------------------------------------Blueprint Init--------------------------------------------------------------------#
+
+
+
 
 blog_bp = Blueprint('blog', __name__)
 
 
+# Creates the blogs and comments tables, does not create them if they already exist in the database
+# Gets called at app start up
 def create_blog_tables(cursor):
-    """Creates blog and comment tables if they don't exist"""
-    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS blogs(
             blog_id      BIGSERIAL PRIMARY KEY,
@@ -39,14 +44,16 @@ def create_blog_tables(cursor):
         CREATE INDEX IF NOT EXISTS idx_comments_username ON comments(username);
         CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at);
     """)
-    
-    print("[BLOG] Tables and indexes created successfully")
 
 
-#-------------------------------- Validation Helper Functions --------------------------------#
 
-def validate_blog_data(subject: str = None, description: str = None, tags: list = None) -> dict:
-    """Validates blog creation data. Returns dict with any validation errors found"""
+
+# All parameters are optional
+def validate_blog_data(subject: str = None, description: str = None, tags: list = None):
+    """
+    Validates blog creation data
+    Returns dict with any validation errors found
+    """
     errors = {}
     
     if subject is not None:
@@ -68,8 +75,12 @@ def validate_blog_data(subject: str = None, description: str = None, tags: list 
     return errors
 
 
-def validate_comment_data(sentiment: str = None, description: str = None) -> dict:
-    """Validates comment data. Returns dict with any validation errors found"""
+# All parameters are optional
+def validate_comment_data(sentiment: str = None, description: str = None):
+    """
+    Validates comment data
+    Returns dict with any validation errors found
+    """
     errors = {}
     
     if sentiment is not None:
@@ -85,91 +96,74 @@ def validate_comment_data(sentiment: str = None, description: str = None) -> dic
     return errors
 
 
-def check_daily_blog_limit(cursor, username: str) -> bool:
-    """Check if user has posted 2 blogs today"""
-    try:
-        cursor.execute("""
-            SELECT COUNT(*) FROM blogs 
-            WHERE username = %s 
-            AND DATE(created_at) = CURRENT_DATE
-        """, (username,))
-        
-        count = cursor.fetchone()[0]
-        return count >= 2
-    except pg.Error as e:
-        print(f"Error checking daily blog limit: {e}")
-        return True
+def check_daily_blog_limit(cursor, username: str):
+    """Checks if user has posted 2 blogs today"""
+    cursor.execute("""
+        SELECT COUNT(*) FROM blogs 
+        WHERE username = %s 
+        AND DATE(created_at) = CURRENT_DATE
+    """, (username,))
+    
+    count = cursor.fetchone()[0]
+    return count >= 2
 
 
-def check_daily_comment_limit(cursor, username: str) -> bool:
-    """Check if user has made 3 comments today"""
-    try:
-        cursor.execute("""
-            SELECT COUNT(*) FROM comments 
-            WHERE username = %s 
-            AND DATE(created_at) = CURRENT_DATE
-        """, (username,))
-        
-        count = cursor.fetchone()[0]
-        return count >= 3
-    except pg.Error as e:
-        print(f"Error checking daily comment limit: {e}")
-        return True
+def check_daily_comment_limit(cursor, username: str):
+    """Checks if user has made 3 comments today"""
+    cursor.execute("""
+        SELECT COUNT(*) FROM comments 
+        WHERE username = %s 
+        AND DATE(created_at) = CURRENT_DATE
+    """, (username,))
+    
+    count = cursor.fetchone()[0]
+    return count >= 3
 
 
-def check_comment_exists(cursor, username: str, blog_id: int) -> bool:
-    """Check if user has already commented on this blog"""
-    try:
-        cursor.execute("""
-            SELECT 1 FROM comments 
-            WHERE username = %s AND blog_id = %s
-        """, (username, blog_id))
-        
-        return cursor.fetchone() is not None
-    except pg.Error as e:
-        print(f"Error checking existing comment: {e}")
-        return True
+def check_comment_exists(cursor, username: str, blog_id: int):
+    """Checks if user has already commented on this blog"""
+    # SELECT 1 is used instead of an actual result (ex: SELECT *) for the query since its faster for this purpose (just finding out if something is there)
+    cursor.execute("""
+        SELECT 1 FROM comments 
+        WHERE username = %s AND blog_id = %s
+    """, (username, blog_id))
+    
+    return cursor.fetchone() is not None
 
 
-def get_blog_author(cursor, blog_id: int) -> str:
-    """Get the author of a blog"""
-    try:
-        cursor.execute("SELECT username FROM blogs WHERE blog_id = %s", (blog_id,))
-        result = cursor.fetchone()
-        return result[0] if result else None
-    except pg.Error as e:
-        print(f"Error getting blog author: {e}")
-        return None
+def get_blog_author(cursor, blog_id: int):
+    """Gets the author username of a blog"""
+    cursor.execute("SELECT username FROM blogs WHERE blog_id = %s", (blog_id,))
+    result = cursor.fetchone()
+    return result[0] if result else None
 
 
-def check_if_blog_exists(cursor, blog_id: int) -> bool:
-    """Check if a blog exists"""
-    try:
-        cursor.execute("SELECT 1 FROM blogs WHERE blog_id = %s", (blog_id,))
-        return cursor.fetchone() is not None
-    except pg.Error as e:
-        print(f"Error checking if blog exists: {e}")
-        return False
+def check_if_blog_exists(cursor, blog_id: int):
+    """Checks if a blog exists"""
+    
+    cursor.execute("SELECT 1 FROM blogs WHERE blog_id = %s", (blog_id,))
+    return cursor.fetchone() is not None
 
 
-#-------------------------------- Blog Creation Route --------------------------------#
+#-------------------------------------------Create Blog-----------------------------------------------------------------------------------------#
+
 
 @blog_bp.route('/create', methods=['POST'])
 def create_blog():
-    """Create a new blog post (max 2 per day)"""
+    conn = None
     
-    # Check if user is logged in
     username = session.get('username')
     if not username:
         return jsonify({"error": "Please log in first before attempting to post"}), 401
     
-    # Get data from request
+    # Data will get POST data from the frontend, and will parse it despite mimetype (force=True)
+    # All values that were entered into the form are parsed from json and saved to a variable
     data = request.get_json(force=True)
     subject = data.get('subject')
     description = data.get('description')
     tags_input = data.get('tags')
     
-    # Process tags
+    # Process tags - convert comma-separated string or list to array
     if isinstance(tags_input, str):
         tags = [tag.strip() for tag in tags_input.split(',') if tag.strip()]
     elif isinstance(tags_input, list):
@@ -177,23 +171,20 @@ def create_blog():
     else:
         tags = None
     
-    # Validate all fields individually
+    # Initialize validation errors here so that it can return each error to the frontend
     validation_errors = validate_blog_data(subject, description, tags)
     if validation_errors:
         return jsonify({"error": list(validation_errors.values())}), 400
     
-    conn = None
     try:
-        # Get fresh connection from pool
         conn = db_pool.getconn()
         conn.autocommit = True
         cur = conn.cursor()
         
-        # Check daily limit
         if check_daily_blog_limit(cur, username):
             return jsonify({"error": "You can only post 2 blogs per day"}), 429
         
-        # Insert blog into database
+        # Tries to insert values into blogs table, outputs blog_id and created_at as a result of DDL
         cur.execute("""
             INSERT INTO blogs (username, subject, description, tags)
             VALUES (%s, %s, %s, %s)
@@ -202,6 +193,7 @@ def create_blog():
         
         result = cur.fetchone()
         
+        # If result has no value, return error and HTTP 500
         if not result:
             return jsonify({"error": "Failed to create blog"}), 500
         
@@ -213,21 +205,16 @@ def create_blog():
             "created_at": created_at.isoformat()
         }), 201
         
-    except pg.Error as e:
-        print(f"Database error while creating blog: {e}")
-        return jsonify({"error": "Database error occurred"}), 500
-    
     finally:
-        # Always return connection to pool
         if conn:
             db_pool.putconn(conn)
 
 
-#-------------------------------- Blog Search Route --------------------------------#
+#-----------------------------------------------------Search/View/Comment----------------------------------------------------------------------#
 
 @blog_bp.route('/search', methods=['GET', 'POST'])
 def search_blogs():
-    """Search blogs by tag"""
+    conn = None
     
     # Support both GET and POST
     if request.method == 'POST':
@@ -239,9 +226,7 @@ def search_blogs():
     if not tag:
         return jsonify({"error": "Tag parameter is required"}), 400
     
-    conn = None
     try:
-        # Get fresh connection from pool
         conn = db_pool.getconn()
         conn.autocommit = True
         cur = conn.cursor()
@@ -282,34 +267,24 @@ def search_blogs():
             "blogs": blogs
         }), 200
         
-    except pg.Error as e:
-        print(f"Database error while searching blogs: {e}")
-        return jsonify({"error": "Database error occurred"}), 500
-    
     finally:
-        # Always return connection to pool
         if conn:
             db_pool.putconn(conn)
 
 
-#-------------------------------- View Blog Route --------------------------------#
-
 @blog_bp.route('/<int:blog_id>', methods=['GET'])
 def get_blog(blog_id):
-    """Get a specific blog with all its comments"""
-    
     conn = None
+    
     try:
-        # Get fresh connection from pool
         conn = db_pool.getconn()
         conn.autocommit = True
         cur = conn.cursor()
         
-        # Check if blog exists first
         if not check_if_blog_exists(cur, blog_id):
             return jsonify({"error": "Blog not found"}), 404
         
-        # Get blog details
+        # Fetches blog details
         cur.execute("""
             SELECT 
                 blog_id,
@@ -327,7 +302,7 @@ def get_blog(blog_id):
         if not blog_row:
             return jsonify({"error": "Blog not found"}), 404
         
-        # Get comments for this blog
+        # Fetches comments for this blog
         cur.execute("""
             SELECT 
                 comment_id,
@@ -364,40 +339,30 @@ def get_blog(blog_id):
         
         return jsonify(blog), 200
         
-    except pg.Error as e:
-        print(f"Database error while fetching blog: {e}")
-        return jsonify({"error": "Database error occurred"}), 500
-    
     finally:
-        # Always return connection to pool
         if conn:
             db_pool.putconn(conn)
 
 
-#-------------------------------- Add Comment Route --------------------------------#
-
 @blog_bp.route('/<int:blog_id>/comment', methods=['POST'])
 def add_comment(blog_id):
-    """Add a comment to a blog (max 3 per day, 1 per blog, no self-comments)"""
+    conn = None
     
-    # Check if user is logged in
     username = session.get('username')
     if not username:
         return jsonify({"error": "Please log in to comment"}), 401
     
-    # Get data from request
+    # Data will get POST data from the frontend, and will parse it despite mimetype (force=True)
     data = request.get_json(force=True)
     sentiment = data.get('sentiment')
     description = data.get('description')
     
-    # Validate comment data individually
+    # Initialize validation errors here so that it can return each error to the frontend
     validation_errors = validate_comment_data(sentiment, description)
     if validation_errors:
         return jsonify({"error": list(validation_errors.values())}), 400
     
-    conn = None
     try:
-        # Get fresh connection from pool
         conn = db_pool.getconn()
         conn.autocommit = True
         cur = conn.cursor()
@@ -407,19 +372,16 @@ def add_comment(blog_id):
         if not blog_author:
             return jsonify({"error": "Blog not found"}), 404
         
-        # Check if user is commenting on their own blog
         if blog_author == username:
             return jsonify({"error": "You cannot comment on your own blog"}), 403
         
-        # Check if user already commented on this blog
         if check_comment_exists(cur, username, blog_id):
             return jsonify({"error": "You can only comment once per blog"}), 409
         
-        # Check daily comment limit
         if check_daily_comment_limit(cur, username):
             return jsonify({"error": "You can only make 3 comments per day"}), 429
         
-        # Insert comment
+        # Tries to insert values into comments table, outputs comment_id and created_at as a result of DDL
         cur.execute("""
             INSERT INTO comments (blog_id, username, sentiment, description)
             VALUES (%s, %s, %s, %s)
@@ -428,6 +390,7 @@ def add_comment(blog_id):
         
         result = cur.fetchone()
         
+        # If result has no value, return error and HTTP 500
         if not result:
             return jsonify({"error": "Failed to create comment"}), 500
         
@@ -439,29 +402,20 @@ def add_comment(blog_id):
             "created_at": created_at.isoformat()
         }), 201
         
-    except pg.Error as e:
-        print(f"Database error while adding comment: {e}")
-        return jsonify({"error": "Database error occurred"}), 500
-    
     finally:
-        # Always return connection to pool
         if conn:
             db_pool.putconn(conn)
 
 
-#-------------------------------- Additional Utility Routes --------------------------------#
-
 @blog_bp.route('/my-blogs', methods=['GET'])
 def get_my_blogs():
-    """Get all blogs created by the logged-in user"""
+    conn = None
     
     username = session.get('username')
     if not username:
         return jsonify({"error": "Please log in first"}), 401
     
-    conn = None
     try:
-        # Get fresh connection from pool
         conn = db_pool.getconn()
         conn.autocommit = True
         cur = conn.cursor()
@@ -492,26 +446,19 @@ def get_my_blogs():
         
         return jsonify({"blogs": blogs}), 200
         
-    except pg.Error as e:
-        print(f"Database error while fetching user blogs: {e}")
-        return jsonify({"error": "Database error occurred"}), 500
-    
     finally:
-        # Always return connection to pool
         if conn:
             db_pool.putconn(conn)
 
 
 @blog_bp.route('/recent', methods=['GET'])
 def get_recent_blogs():
-    """Get recent blogs (optional: for homepage)"""
+    conn = None
     
     limit = request.args.get('limit', 10, type=int)
-    limit = min(limit, 50)  # Cap at 50
+    limit = min(limit, 50)
     
-    conn = None
     try:
-        # Get fresh connection from pool
         conn = db_pool.getconn()
         conn.autocommit = True
         cur = conn.cursor()
@@ -544,40 +491,30 @@ def get_recent_blogs():
         
         return jsonify({"blogs": blogs}), 200
         
-    except pg.Error as e:
-        print(f"Database error while fetching recent blogs: {e}")
-        return jsonify({"error": "Database error occurred"}), 500
-    
     finally:
-        # Always return connection to pool
         if conn:
             db_pool.putconn(conn)
 
 
 @blog_bp.route('/_debug/stats', methods=['GET'])
-def debug_stats():
-    """Get blog and comment statistics (for admin use)"""
-    
+def _debug_stats():
     conn = None
+    
     try:
-        # Get fresh connection from pool
         conn = db_pool.getconn()
         conn.autocommit = True
         cur = conn.cursor()
         
-        # Get total blogs
+        # Fetches number of blogs and comments, for admin use
         cur.execute("SELECT COUNT(*) FROM blogs")
         total_blogs = cur.fetchone()[0]
         
-        # Get total comments
         cur.execute("SELECT COUNT(*) FROM comments")
         total_comments = cur.fetchone()[0]
         
-        # Get blogs today
         cur.execute("SELECT COUNT(*) FROM blogs WHERE DATE(created_at) = CURRENT_DATE")
         blogs_today = cur.fetchone()[0]
         
-        # Get comments today
         cur.execute("SELECT COUNT(*) FROM comments WHERE DATE(created_at) = CURRENT_DATE")
         comments_today = cur.fetchone()[0]
         
@@ -588,11 +525,6 @@ def debug_stats():
             "comments_today": comments_today
         }), 200
         
-    except pg.Error as e:
-        print(f"Database error while fetching stats: {e}")
-        return jsonify({"error": "Database error occurred"}), 500
-    
     finally:
-        # Always return connection to pool
         if conn:
             db_pool.putconn(conn)
