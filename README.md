@@ -7,3 +7,7 @@ React + Flask + Postgres (Railway), and Docker Compose for building and deployin
 ## Phase 1 Youtube Video
 
 https://www.youtube.com/watch?v=93qupBR9rTs
+
+## Phase 2 Youtube Video
+
+https://www.youtube.com/watch?v=GGCI3f_TxmY
