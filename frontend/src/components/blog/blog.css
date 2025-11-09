@@ -1,0 +1,38 @@
+/* components/blog/createBlog.css */
+.create-blog-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* components/blog/searchBlogs.css */
+.search-blogs-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.search-form {
+    display: flex;
+    gap: 15px;
+    width: 100%;
+    max-width: 600px;
+}
+
+/* components/blog/viewBlog.css */
+.view-blog-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}

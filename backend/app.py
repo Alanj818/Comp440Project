@@ -37,11 +37,35 @@ def create_app():
     from auth import auth_bp, create_auth_table  
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
 
-    # Importing the db_pool to create the auth table the first time the app is ran
+    # Importing the blog Blueprint to be registered to the main app
+    from blog import blog_bp, create_blog_tables
+    app.register_blueprint(blog_bp, url_prefix="/api/blog")
+
+    # Importing the db_pool to create tables the first time the app is ran
     from db_conn import db_pool
-    conn = db_pool.getconn()
-    cur = conn.cursor()
-    create_auth_table(cur)
+    
+    conn = None
+    try:
+        # Get fresh connection from pool for table creation
+        conn = db_pool.getconn()
+        conn.autocommit = True
+        cur = conn.cursor()
+        
+        # Create auth table
+        create_auth_table(cur)
+        
+        # Create blog tables
+        create_blog_tables(cur)
+        
+        print("[APP] All tables created successfully")
+        
+    except Exception as e:
+        print(f"[APP] Error creating tables: {e}")
+        
+    finally:
+        # Always return connection to pool
+        if conn:
+            db_pool.putconn(conn)
 
     return app
 

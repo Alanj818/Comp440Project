@@ -6,14 +6,20 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
 
+
 # Using a pool to keep connection open and handle concurrent connections, also reuses existing connections.
 db_pool = pool.ThreadedConnectionPool(
-        minconn= 1,
-        maxconn= 10,
-        dbname=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASS"),
-        host=os.getenv("DB_HOST"),
-        port=os.getenv("DB_PORT"),
-        sslmode=os.getenv("DB_SSLMODE", "require")
-    )
+                minconn= 1,
+                maxconn= 10,
+                dbname=os.getenv("DB_NAME"),
+                user=os.getenv("DB_USER"),
+                password=os.getenv("DB_PASS"),
+                host=os.getenv("DB_HOST"),
+                port=os.getenv("DB_PORT"),
+                sslmode=os.getenv("DB_SSLMODE", "require"),
+                connect_timeout=10,
+                keepalives=1,
+                keepalives_idle=30,
+                keepalives_interval=10,
+                keepalives_count=5
+            )
