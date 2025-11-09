@@ -2,7 +2,7 @@
 
 ## Tools
 
-React + Flask + Postgres (Railway), and Docker Compose for building and deploying containers.
+React + Flask + Postgres (Railway), and Docker Compose for building and deploying dev/production containers.
 
 ## Phase 1 Youtube Video
 
