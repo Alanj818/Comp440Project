@@ -7,6 +7,7 @@ import HomePage from './(site)/home/homePage';
 import CreateBlogPage from './(site)/blog/createBlogPage';
 import SearchBlogPage from './(site)/blog/searchBlogPage';
 import ViewBlogPage from './(site)/blog/viewBlogPage';
+import Phase3Page from './(site)/phase3/phase3Page';
 
 
 
@@ -20,6 +21,7 @@ function App() {
         <Route path="/blog/create" element={<CreateBlogPage />} />
         <Route path="/blog/search" element={<SearchBlogPage />} />
         <Route path="/blog/:blogId" element={<ViewBlogPage />} />
+        <Route path="/phase3" element={<Phase3Page />} />
       </Routes>
     </BrowserRouter>
   );

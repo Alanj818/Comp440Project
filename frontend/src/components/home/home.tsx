@@ -21,7 +21,7 @@ export default function HomeComponent() {
   const handleLogout = async () => {
     try {
       setLoading(true);
-      
+
       const res = await fetch(`${API_URL}/api/auth/logout`, {
         method: "GET",
         credentials: "include",
@@ -31,7 +31,7 @@ export default function HomeComponent() {
         // Clear username from localStorage
         localStorage.removeItem("username");
         setUsername(null);
-        
+
         // Redirect to home (refresh the page)
         window.location.href = "/";
       }
@@ -55,25 +55,25 @@ export default function HomeComponent() {
             Welcome, {username}!
           </Typography>
 
-          <Button 
-            variant="text" 
-            color="primary" 
+          <Button
+            variant="text"
+            color="primary"
             onClick={() => navigate('/blog/create')}
           >
             Create Blog
           </Button>
 
-          <Button 
-            variant="text" 
-            color="primary" 
+          <Button
+            variant="text"
+            color="primary"
             onClick={() => navigate('/blog/search')}
           >
             Search Blogs
           </Button>
 
-          <Button 
-            variant="text" 
-            color="error" 
+          <Button
+            variant="text"
+            color="error"
             onClick={handleLogout}
             disabled={loading}
           >
@@ -83,31 +83,39 @@ export default function HomeComponent() {
       ) : (
         // Show when user is not logged in
         <>
-          <Button 
-            variant="text" 
-            color="primary" 
+          <Button
+            variant="text"
+            color="primary"
             onClick={() => navigate('/login')}
           >
             Go to Login
           </Button>
 
-          <Button 
-            variant="text" 
-            color="primary" 
+          <Button
+            variant="text"
+            color="primary"
             onClick={() => navigate('/register')}
           >
             Go to Register
           </Button>
 
-          <Button 
-            variant="text" 
-            color="secondary" 
+          <Button
+            variant="text"
+            color="secondary"
             onClick={() => navigate('/blog/search')}
           >
             Browse Blogs
           </Button>
         </>
       )}
+
+      <Button
+        variant="text"
+        color="secondary"
+        onClick={() => navigate('/phase3')}
+      >
+        phase3 methods
+      </Button>
     </Box>
   );
 }
