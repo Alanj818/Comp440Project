@@ -38,6 +38,7 @@ def create_app():
 
     from blog import blog_bp, create_blog_tables
     app.register_blueprint(blog_bp, url_prefix="/api/blog")
+    
 
     from db_conn import db_pool
     

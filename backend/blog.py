@@ -45,6 +45,16 @@ def create_blog_tables(cursor):
         CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at);
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS follows(
+        follower_username VARCHAR(255) NOT NULL REFERENCES auth(username) ON DELETE CASCADE,
+        followed_username VARCHAR(255) NOT NULL REFERENCES auth(username) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (follower_username, followed_username)
+        );
+    """)
+
+
 
 
 
@@ -436,3 +446,428 @@ def _debug_stats():
     finally:
         if conn:
             db_pool.putconn(conn)
+
+#-----------------------------------------------------Phase 3----------------------------------------------------------------------#
+
+@blog_bp.route("/query1", methods=["POST"])
+def query1_same_day_tags():
+    """
+    Phase 3 - Query 1:
+    List users who posted at least two different blogs on the same day,
+    one with tagA and one with tagB.
+    """
+    data = request.get_json(silent=True) or {}
+
+    tag_a = data.get("tagA")
+    tag_b = data.get("tagB")
+
+    # Basic validation
+    if not tag_a or not tag_b:
+        return jsonify({"error": "Both tagA and tagB are required"}), 400
+
+    conn = None
+    try:
+        conn = db_pool.getconn()
+        cur = conn.cursor()
+
+        sql = """
+            SELECT DISTINCT a.username, a.firstname, a.lastname
+            FROM blogs b1
+            JOIN blogs b2
+              ON b1.username = b2.username
+             AND b1.blog_id <> b2.blog_id
+             AND DATE(b1.created_at) = DATE(b2.created_at)
+            JOIN auth a
+              ON a.username = b1.username
+            WHERE %s = ANY (b1.tags)
+              AND %s = ANY (b2.tags);
+        """
+
+        cur.execute(sql, (tag_a, tag_b))
+        rows = cur.fetchall()
+
+        users = [
+            {
+                "username": row[0],
+                "firstname": row[1],
+                "lastname": row[2],
+            }
+            for row in rows
+        ]
+
+        return jsonify({"users": users}), 200
+
+    except Exception as e:
+        print("[QUERY1] Error:", e)
+        return jsonify({"error": "Internal server error"}), 500
+
+    finally:
+        if conn:
+            db_pool.putconn(conn)
+
+
+@blog_bp.route("/query2", methods=["GET"])
+def query2_most_blogs_on_date():
+    """
+    Phase 3 - Query 2:
+    List the users who posted the most number of blogs on a specific date.
+    If there's a tie, list all tied users.
+
+    Date can be provided as a query parameter ?date=YYYY-MM-DD.
+    If not provided, a default hard-coded date is used.
+    """
+    # Default date
+    default_date = "2025-10-10"
+
+    # Optional override from UI: /api/blog/query2?date=2025-11-09
+    target_date = request.args.get("date", default_date)
+
+    conn = None
+    try:
+        conn = db_pool.getconn()
+        cur = conn.cursor()
+
+        sql = """
+            WITH counts AS (
+                SELECT 
+                    username,
+                    COUNT(*) AS blog_count
+                FROM blogs
+                WHERE DATE(created_at) = %s
+                GROUP BY username
+            ),
+            max_count AS (
+                SELECT MAX(blog_count) AS max_blog_count
+                FROM counts
+            )
+            SELECT 
+                a.username,
+                a.firstname,
+                a.lastname,
+                c.blog_count
+            FROM counts c
+            JOIN max_count m
+              ON c.blog_count = m.max_blog_count
+            JOIN auth a
+              ON a.username = c.username;
+        """
+
+        cur.execute(sql, (target_date,))
+        rows = cur.fetchall()
+
+        users = [
+            {
+                "username": row[0],
+                "firstname": row[1],
+                "lastname": row[2],
+                "blog_count": row[3],
+                "date": target_date,
+            }
+            for row in rows
+        ]
+
+        return jsonify({"users": users, "date": target_date}), 200
+
+    except Exception as e:
+        print("[QUERY2] Error:", e)
+        return jsonify({"error": "Internal server error"}), 500
+
+    finally:
+        if conn:
+            db_pool.putconn(conn)
+
+
+@blog_bp.route("/query3", methods=["POST"])
+def query3_followed_by_both():
+    """
+    Phase 3 - Query 3:
+    List the users who are followed by both users X and Y.
+    X and Y are provided in the request body.
+    """
+    data = request.get_json(silent=True) or {}
+
+    user_x = data.get("userX")
+    user_y = data.get("userY")
+
+    if not user_x or not user_y:
+        return jsonify({"error": "Both userX and userY are required"}), 400
+
+    if user_x == user_y:
+        return jsonify({"error": "userX and userY must be different users"}), 400
+
+    conn = None
+    try:
+        conn = db_pool.getconn()
+        cur = conn.cursor()
+
+        sql = """
+            WITH common_followed AS (
+                SELECT 
+                    followed_username
+                FROM follows
+                WHERE follower_username IN (%s, %s)
+                GROUP BY followed_username
+                HAVING COUNT(DISTINCT follower_username) = 2
+            )
+            SELECT 
+                a.username,
+                a.firstname,
+                a.lastname
+            FROM common_followed cf
+            JOIN auth a
+              ON a.username = cf.followed_username;
+        """
+
+        cur.execute(sql, (user_x, user_y))
+        rows = cur.fetchall()
+
+        users = [
+            {
+                "username": row[0],
+                "firstname": row[1],
+                "lastname": row[2],
+            }
+            for row in rows
+        ]
+
+        return jsonify({"users": users, "userX": user_x, "userY": user_y}), 200
+
+    except Exception as e:
+        print("[QUERY3] Error:", e)
+        return jsonify({"error": "Internal server error"}), 500
+
+    finally:
+        if conn:
+            db_pool.putconn(conn)
+
+@blog_bp.route("/query4", methods=["GET"])
+def query4_users_never_posted():
+    """
+    Phase 3 - Query 4:
+    Display all the users who never posted a blog.
+    """
+    conn = None
+    try:
+        conn = db_pool.getconn()
+        cur = conn.cursor()
+
+        sql = """
+            SELECT 
+                a.username,
+                a.firstname,
+                a.lastname
+            FROM auth a
+            LEFT JOIN blogs b
+              ON b.username = a.username
+            WHERE b.blog_id IS NULL;
+        """
+
+        cur.execute(sql)
+        rows = cur.fetchall()
+
+        users = [
+            {
+                "username": row[0],
+                "firstname": row[1],
+                "lastname": row[2],
+            }
+            for row in rows
+        ]
+
+        return jsonify({"users": users}), 200
+
+    except Exception as e:
+        print("[QUERY4] Error:", e)
+        return jsonify({"error": "Internal server error"}), 500
+
+    finally:
+        if conn:
+            db_pool.putconn(conn)
+
+@blog_bp.route("/query5", methods=["POST"])
+def query5_user_blogs_all_positive():
+    """
+    Phase 3 - Query 5:
+    List all the blogs of user X such that:
+      - The blog has at least one comment
+      - All comments are Positive
+      - There are Nno Negative comments
+    User X is provided in the request body as 'username'.
+    """
+    data = request.get_json(silent=True) or {}
+    username = data.get("username")
+
+    if not username:
+        return jsonify({"error": "username is required"}), 400
+
+    conn = None
+    try:
+        conn = db_pool.getconn()
+        cur = conn.cursor()
+
+        sql = """
+            SELECT 
+                b.blog_id,
+                b.username,
+                b.subject,
+                b.description,
+                b.tags,
+                b.created_at
+            FROM blogs b
+            WHERE b.username = %s
+              -- must have at least one comment
+              AND EXISTS (
+                  SELECT 1
+                  FROM comments c
+                  WHERE c.blog_id = b.blog_id
+              )
+              -- must NOT have any negative comments
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM comments c2
+                  WHERE c2.blog_id = b.blog_id
+                    AND c2.sentiment = 'Negative'
+              );
+        """
+
+        cur.execute(sql, (username,))
+        rows = cur.fetchall()
+
+        blogs = [
+            {
+                "blog_id": row[0],
+                "username": row[1],
+                "subject": row[2],
+                "description": row[3],
+                "tags": row[4],
+                "created_at": row[5].isoformat(),
+            }
+            for row in rows
+        ]
+
+        return jsonify({"username": username, "blogs": blogs}), 200
+
+    except Exception as e:
+        print("[QUERY5] Error:", e)
+        return jsonify({"error": "Internal server error"}), 500
+
+    finally:
+        if conn:
+            db_pool.putconn(conn)
+
+@blog_bp.route("/query6", methods=["GET"])
+def query6_users_only_negative_comments():
+    """
+    Phase 3 - Query 6:
+    Display all the users who posted some comments,
+    but each of them is Negative.
+    """
+    conn = None
+    try:
+        conn = db_pool.getconn()
+        cur = conn.cursor()
+
+        sql = """
+            WITH negative_only AS (
+                SELECT 
+                    c.username
+                FROM comments c
+                GROUP BY c.username
+                HAVING 
+                    COUNT(*) > 0
+                    AND SUM(CASE WHEN c.sentiment = 'Positive' THEN 1 ELSE 0 END) = 0
+            )
+            SELECT 
+                a.username,
+                a.firstname,
+                a.lastname
+            FROM negative_only n
+            JOIN auth a
+              ON a.username = n.username;
+        """
+
+        cur.execute(sql)
+        rows = cur.fetchall()
+
+        users = [
+            {
+                "username": row[0],
+                "firstname": row[1],
+                "lastname": row[2],
+            }
+            for row in rows
+        ]
+
+        return jsonify({"users": users}), 200
+
+    except Exception as e:
+        print("[QUERY6] Error:", e)
+        return jsonify({"error": "Internal server error"}), 500
+
+    finally:
+        if conn:
+            db_pool.putconn(conn)
+
+@blog_bp.route("/query7", methods=["GET"])
+def query7_users_no_negative_on_blogs():
+    """
+    Phase 3 - Query 7:
+    Display users who have posted some blogs, and none of their blogs
+    have ever received a Negative comment.
+    Blogs may have only Positive comments or no comments at all.
+    """
+    conn = None
+    try:
+        conn = db_pool.getconn()
+        cur = conn.cursor()
+
+        sql = """
+            WITH user_blogs AS (
+                SELECT 
+                    b.username,
+                    COUNT(DISTINCT b.blog_id) AS blog_count,
+                    SUM(
+                        CASE 
+                            WHEN c.sentiment = 'Negative' THEN 1 
+                            ELSE 0 
+                        END
+                    ) AS neg_count
+                FROM blogs b
+                LEFT JOIN comments c
+                  ON c.blog_id = b.blog_id
+                GROUP BY b.username
+            )
+            SELECT 
+                a.username,
+                a.firstname,
+                a.lastname
+            FROM user_blogs ub
+            JOIN auth a
+              ON a.username = ub.username
+            WHERE ub.blog_count > 0
+              AND ub.neg_count = 0;
+        """
+
+        cur.execute(sql)
+        rows = cur.fetchall()
+
+        users = [
+            {
+                "username": row[0],
+                "firstname": row[1],
+                "lastname": row[2],
+            }
+            for row in rows
+        ]
+
+        return jsonify({"users": users}), 200
+
+    except Exception as e:
+        print("[QUERY7] Error:", e)
+        return jsonify({"error": "Internal server error"}), 500
+
+    finally:
+        if conn:
+            db_pool.putconn(conn)
+
+
