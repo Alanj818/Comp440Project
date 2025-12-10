@@ -4,7 +4,7 @@
 
 React + Flask + Postgres (Railway), and Docker Compose for building and deploying dev/production containers.
 
-##contributions
+## Contributions
 
 Everyone did their fair share 33% each.
 
